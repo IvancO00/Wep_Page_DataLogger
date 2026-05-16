@@ -105,28 +105,45 @@ class DashboardTab {
 
   _resizeCanvases() {
     const dpr = window.devicePixelRatio || 1;
-    for (const [canvas, w, h] of [
-      [this._speedCanvas,   220, 150],
-      [this._compassCanvas, 170, 170],
-      [this._ggMiniCanvas,  180, 180],
-    ]) {
-      canvas.width  = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width  = `${w}px`;
-      canvas.style.height = `${h}px`;
-      canvas.getContext('2d').scale(dpr, dpr);
-    }
+    const speedParentW   = this._speedCanvas.parentElement?.clientWidth || 260;
+    const compassParentW = this._compassCanvas.parentElement?.clientWidth || 210;
+    const ggParentW      = this._ggMiniCanvas.parentElement?.clientWidth || 220;
+
+    const speedW   = Math.max(170, Math.min(220, speedParentW - 12));
+    const speedH   = Math.round(speedW * (150 / 220));
+    const compassW = Math.max(140, Math.min(170, compassParentW - 12));
+    const ggW      = Math.max(150, Math.min(180, ggParentW - 12));
+
+    this._dims = {
+      speed:   { w: speedW,   h: speedH },
+      compass: { w: compassW, h: compassW },
+      gg:      { w: ggW,      h: ggW },
+    };
+
+    this._applyCanvasSize(this._speedCanvas, this._speedCtx, speedW, speedH, dpr);
+    this._applyCanvasSize(this._compassCanvas, this._compassCtx, compassW, compassW, dpr);
+    this._applyCanvasSize(this._ggMiniCanvas, this._ggMiniCtx, ggW, ggW, dpr);
+  }
+
+  _applyCanvasSize(canvas, ctx, w, h, dpr) {
+    canvas.width  = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.width  = `${Math.round(w)}px`;
+    canvas.style.height = `${Math.round(h)}px`;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
   }
 
   /* ── Speed arc gauge ─────────────────────────────── */
   _drawSpeedGauge(speed) {
     const ctx = this._speedCtx;
-    const W = 220, H = 150;
+    const W = this._dims?.speed?.w || 220;
+    const H = this._dims?.speed?.h || 150;
     ctx.clearRect(0, 0, W, H);
 
     const cx        = W / 2;
     const cy        = H * 0.80;
-    const R         = 90;
+    const R         = Math.min(W * 0.42, H * 0.62);
     const MAX_SPD   = 160;
     const ARC_START = Math.PI * 0.80;   // starts bottom-left
     const ARC_END   = Math.PI * 2.20;   // ends bottom-right
@@ -182,11 +199,12 @@ class DashboardTab {
   /* ── Compass ─────────────────────────────────────── */
   _drawCompass(heading) {
     const ctx = this._compassCtx;
-    const W = 170, H = 170;
+    const W = this._dims?.compass?.w || 170;
+    const H = this._dims?.compass?.h || 170;
     ctx.clearRect(0, 0, W, H);
 
     const cx = W / 2, cy = H / 2;
-    const R  = 72;
+    const R  = Math.min(W, H) * 0.42;
     const cs = getComputedStyle(document.documentElement);
     const lineCol   = cs.getPropertyValue('--line').trim()   || '#ccc';
     const inkCol    = cs.getPropertyValue('--ink').trim()    || '#111';
@@ -262,11 +280,12 @@ class DashboardTab {
   /* ── GG mini ─────────────────────────────────────── */
   _drawGGMini() {
     const ctx = this._ggMiniCtx;
-    const W = 180, H = 180;
+    const W = this._dims?.gg?.w || 180;
+    const H = this._dims?.gg?.h || 180;
     ctx.clearRect(0, 0, W, H);
 
     const cx    = W / 2, cy = H / 2;
-    const SCALE = 28;  // px per g
+    const SCALE = Math.min(W, H) * 0.155;  // px per g
     const MAX_G = 3;
     const cs = getComputedStyle(document.documentElement);
     const lineCol = cs.getPropertyValue('--line').trim() || '#ddd';
