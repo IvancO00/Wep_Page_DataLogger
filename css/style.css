@@ -938,21 +938,24 @@ select, input { font-family: var(--font-sans); color: var(--ink); }
   .tab-bar {
     height: auto;
     min-height: 0;
-    padding: 6px 8px;
+    padding: 8px;
     gap: 6px;
     border-bottom: 1px solid var(--line);
-    scroll-snap-type: x mandatory;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
   .tab-btn {
-    height: 32px;
+    width: 100%;
+    justify-content: flex-start;
+    height: 36px;
     padding: 0 12px;
-    border-radius: 999px;
+    border-radius: 10px;
     border: 1px solid var(--line);
     background: var(--surface-2);
     border-bottom: 1px solid var(--line);
     font-size: 12px;
-    scroll-snap-align: start;
   }
   .tab-btn.active {
     color: #fff;
