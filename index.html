@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kart Telemetry</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════ HEADER ═══ -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="app-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="logo-svg">
+          <polygon points="12,2 22,7 22,17 12,22 2,17 2,7" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <circle cx="12" cy="12" r="3" fill="currentColor"/>
+        </svg>
+        <span class="app-title">KART TELEMETRY</span>
+      </div>
+      <div class="ble-status">
+        <span id="bleDot" class="ble-dot disconnected"></span>
+        <span id="bleStatusText">Disconnected</span>
+        <span id="fixBadge" class="fix-badge fix-none">NO FIX</span>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="live-stat-block">
+        <span class="live-stat-label">SPEED</span>
+        <span id="headerSpeed" class="live-stat-value">-- km/h</span>
+      </div>
+      <div class="live-stat-block">
+        <span class="live-stat-label">LAP</span>
+        <span id="headerLap" class="live-stat-value">--</span>
+      </div>
+      <div class="live-stat-block">
+        <span class="live-stat-label">LAP TIME</span>
+        <span id="headerLapTime" class="live-stat-value mono">--:--.---</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button id="connectBtn" class="btn btn-connect">Connect</button>
+      <button id="disconnectBtn" class="btn btn-disconnect" disabled>Disconnect</button>
+      <button id="themeBtn" class="btn btn-icon" title="Toggle theme">◑</button>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════ TAB BAR ═══ -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="dashboard">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Dashboard
+    </button>
+    <button class="tab-btn" data-tab="map">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      Map
+    </button>
+    <button class="tab-btn" data-tab="ggplot">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="15" r="2"/><circle cx="15" cy="9" r="2"/><circle cx="6" cy="8" r="2"/><circle cx="18" cy="16" r="2"/></svg>
+      GG Plot
+    </button>
+    <button class="tab-btn" data-tab="timing">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Timing
+    </button>
+    <button class="tab-btn" data-tab="channels">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Channels
+    </button>
+    <button class="tab-btn" data-tab="export">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export
+    </button>
+  </nav>
+
+  <!-- ══════════════════════════════════════ PANELS ════ -->
+  <main class="tab-content">
+
+    <!-- ── DASHBOARD ─────────────────────────────────── -->
+    <section id="tab-dashboard" class="tab-panel active">
+      <div class="dashboard-grid">
+
+        <div class="dash-card speed-card">
+          <div class="card-label">SPEED</div>
+          <div class="gauge-wrap">
+            <canvas id="speedGauge"></canvas>
+            <div class="gauge-center-value">
+              <span id="speedVal">0</span>
+              <span class="unit">km/h</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-card compass-card">
+          <div class="card-label">HEADING</div>
+          <div class="gauge-wrap">
+            <canvas id="compassCanvas"></canvas>
+            <div class="gauge-center-value small">
+              <span id="headingVal">0</span>°
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-card gg-mini-card">
+          <div class="card-label">G-FORCE LIVE</div>
+          <canvas id="ggMini"></canvas>
+          <div class="gg-mini-vals">
+            <span>Lat: <strong id="lateralGVal">0.00</strong> g</span>
+            <span>Long: <strong id="longGVal">0.00</strong> g</span>
+          </div>
+        </div>
+
+        <div class="dash-card g-bars-card">
+          <div class="card-label">LATERAL G</div>
+          <div class="lat-g-bar-wrap">
+            <div class="lat-g-track">
+              <div id="lateralGBarLeft" class="lat-g-fill left"></div>
+              <div class="lat-g-center"></div>
+              <div id="lateralGBarRight" class="lat-g-fill right"></div>
+            </div>
+            <div class="lat-g-labels">
+              <span>3L</span><span>2</span><span>1</span><span>0</span><span>1</span><span>2</span><span>3R</span>
+            </div>
+          </div>
+          <div class="card-label" style="margin-top:14px">LONGITUDINAL G</div>
+          <div class="long-g-bar-wrap">
+            <div class="long-g-track">
+              <div id="longGBarNeg" class="long-g-fill brake"></div>
+              <div class="long-g-center"></div>
+              <div id="longGBarPos" class="long-g-fill accel"></div>
+            </div>
+            <div class="long-g-labels">
+              <span>-3 BRAKE</span><span>0</span><span>ACCEL +3</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-card info-card">
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="card-label">ALTITUDE</div>
+              <div class="info-value"><span id="altVal">--</span><span class="info-unit">m</span></div>
+            </div>
+            <div class="info-item">
+              <div class="card-label">TEMPERATURE</div>
+              <div class="info-value"><span id="tempVal">--</span><span class="info-unit">°C</span></div>
+            </div>
+            <div class="info-item">
+              <div class="card-label">YAW RATE</div>
+              <div class="info-value"><span id="gzVal">--</span><span class="info-unit">°/s</span></div>
+            </div>
+            <div class="info-item">
+              <div class="card-label">VERTICAL G</div>
+              <div class="info-value"><span id="azVal">--</span><span class="info-unit">g</span></div>
+            </div>
+          </div>
+          <div class="fix-row">
+            <div class="card-label">GPS FIX QUALITY</div>
+            <div id="fixDetail" class="fix-detail fix-none">No Fix</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── MAP ───────────────────────────────────────── -->
+    <section id="tab-map" class="tab-panel">
+      <div class="split-layout">
+        <div id="mapContainer" class="split-main"></div>
+        <aside class="split-sidebar">
+          <div class="sidebar-section">
+            <div class="section-title">TRACK SETUP</div>
+            <p class="sidebar-hint">Click two points on the map to define each marker.</p>
+            <button id="setFinishBtn" class="btn btn-outline full-width">⚑ Set Finish Line</button>
+            <div id="finishLineStatus" class="setup-status">Not set</div>
+            <button id="addSectorBtn" class="btn btn-outline full-width">◎ Add Sector</button>
+            <div id="sectorStatus" class="setup-status">0 / 2 sectors set</div>
+            <button id="clearMarkersBtn" class="btn btn-outline full-width btn-danger">✕ Clear Markers</button>
+          </div>
+          <div class="sidebar-section">
+            <div class="section-title">COLOR BY</div>
+            <div class="btn-group">
+              <button class="btn btn-sm active" data-color="speed">Speed</button>
+              <button class="btn btn-sm" data-color="lateral">Lat G</button>
+              <button class="btn btn-sm" data-color="longG">Long G</button>
+            </div>
+            <div class="color-legend">
+              <div class="legend-gradient" id="legendGradient"></div>
+              <div class="legend-labels">
+                <span id="legendMin">0</span>
+                <span id="legendMax">150 km/h</span>
+              </div>
+            </div>
+          </div>
+          <div class="sidebar-section">
+            <div class="section-title">SESSION</div>
+            <div class="stat-row"><span>GPS Points</span><span id="mapGpsCount">0</span></div>
+            <div class="stat-row"><span>Distance</span><span id="mapDistance">0 m</span></div>
+            <button id="clearTrackBtn" class="btn btn-outline full-width btn-danger">Clear Track</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ── GG PLOT ────────────────────────────────────── -->
+    <section id="tab-ggplot" class="tab-panel">
+      <div class="split-layout">
+        <div class="gg-chart-wrap split-main">
+          <canvas id="ggCanvas"></canvas>
+        </div>
+        <aside class="split-sidebar">
+          <div class="sidebar-section">
+            <div class="section-title">SETTINGS</div>
+            <label class="control-label">Trail length</label>
+            <input type="range" id="ggTrailLength" min="50" max="2000" value="500" class="range-input">
+            <div class="range-value"><span id="ggTrailVal">500</span> pts</div>
+            <label class="toggle-row">
+              <span>Show circles</span>
+              <label class="toggle"><input type="checkbox" id="ggCircles" checked><span class="slider"></span></label>
+            </label>
+            <label class="toggle-row">
+              <span>Fade trail</span>
+              <label class="toggle"><input type="checkbox" id="ggFade" checked><span class="slider"></span></label>
+            </label>
+          </div>
+          <div class="sidebar-section">
+            <div class="section-title">PEAK VALUES</div>
+            <div class="stat-row"><span>Peak Lat G</span><span id="peakLatG">-- g</span></div>
+            <div class="stat-row"><span>Peak Long G (accel)</span><span id="peakLongG">-- g</span></div>
+            <div class="stat-row"><span>Peak Braking G</span><span id="peakBrakeG">-- g</span></div>
+            <div class="stat-row"><span>Peak Combined G</span><span id="peakCombG">-- g</span></div>
+            <button id="resetPeaksBtn" class="btn btn-outline full-width" style="margin-top:8px">Reset Peaks</button>
+          </div>
+          <div class="sidebar-section">
+            <div class="section-title">LAP FILTER</div>
+            <select id="ggLapSelect" class="select-input">
+              <option value="live">Live / Current</option>
+            </select>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ── TIMING ─────────────────────────────────────── -->
+    <section id="tab-timing" class="tab-panel">
+      <div class="timing-layout">
+        <div class="timing-live-bar">
+          <div class="timing-live-item">
+            <div class="tl-label">CURRENT LAP</div>
+            <div id="currentLapNum" class="tl-lapnum">LAP 1</div>
+          </div>
+          <div class="timing-live-item large">
+            <div class="tl-label">LAP TIME</div>
+            <div id="currentLapTimer" class="tl-timer">00:00.000</div>
+          </div>
+          <div class="timing-live-item">
+            <div class="tl-label">S1</div>
+            <div id="s1Display" class="sector-time">--:--.---</div>
+          </div>
+          <div class="timing-live-item">
+            <div class="tl-label">S2</div>
+            <div id="s2Display" class="sector-time">--:--.---</div>
+          </div>
+          <div class="timing-live-item">
+            <div class="tl-label">S3</div>
+            <div id="s3Display" class="sector-time">--:--.---</div>
+          </div>
+          <div class="timing-live-item">
+            <div class="tl-label">Δ BEST</div>
+            <div id="deltaBest" class="delta-time neutral">--</div>
+          </div>
+          <div class="timing-live-item">
+            <div class="tl-label">BEST LAP</div>
+            <div id="bestLapDisplay" class="best-lap-time">--:--.---</div>
+          </div>
+        </div>
+        <div class="timing-table-wrap">
+          <table class="timing-table">
+            <thead>
+              <tr>
+                <th>LAP</th>
+                <th>TIME</th>
+                <th>Δ BEST</th>
+                <th>S1</th>
+                <th>S2</th>
+                <th>S3</th>
+                <th>AVG SPD</th>
+                <th>PEAK LAT G</th>
+              </tr>
+            </thead>
+            <tbody id="timingTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CHANNELS ───────────────────────────────────── -->
+    <section id="tab-channels" class="tab-panel">
+      <div class="split-layout">
+        <aside class="split-sidebar channels-sidebar">
+          <div class="sidebar-section">
+            <div class="section-title">LAP SELECT</div>
+            <select id="channelsLapSelect" class="select-input">
+              <option value="live">Live</option>
+            </select>
+          </div>
+          <div class="sidebar-section">
+            <div class="section-title">CHANNELS</div>
+            <label class="ch-toggle"><input type="checkbox" data-ch="speed" checked><span class="ch-dot" style="background:#0f6b5a"></span> Speed</label>
+            <label class="ch-toggle"><input type="checkbox" data-ch="lateral" checked><span class="ch-dot" style="background:#cf5c36"></span> Lateral G</label>
+            <label class="ch-toggle"><input type="checkbox" data-ch="longG" checked><span class="ch-dot" style="background:#5b8cde"></span> Long G</label>
+            <label class="ch-toggle"><input type="checkbox" data-ch="vertG"><span class="ch-dot" style="background:#9b59b6"></span> Vert G</label>
+            <label class="ch-toggle"><input type="checkbox" data-ch="yaw"><span class="ch-dot" style="background:#f39c12"></span> Yaw Rate</label>
+          </div>
+          <div class="sidebar-section">
+            <div class="section-title">TIME WINDOW</div>
+            <input type="range" id="channelWindow" min="5" max="120" value="30" class="range-input">
+            <div class="range-value"><span id="channelWindowVal">30</span> s</div>
+          </div>
+        </aside>
+        <div class="channels-charts split-main">
+          <div class="channel-chart-wrap"><canvas id="speedChart"></canvas></div>
+          <div class="channel-chart-wrap"><canvas id="lateralGChart"></canvas></div>
+          <div class="channel-chart-wrap"><canvas id="longGChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── EXPORT ─────────────────────────────────────── -->
+    <section id="tab-export" class="tab-panel">
+      <div class="export-layout">
+        <div class="export-cards">
+          <div class="export-card">
+            <div class="export-icon">{ }</div>
+            <div class="export-title">Session JSON</div>
+            <div class="export-desc">All packets, laps and metadata as JSON</div>
+            <button id="exportJsonBtn" class="btn btn-connect full-width">Download JSON</button>
+          </div>
+          <div class="export-card">
+            <div class="export-icon">⋮⋮</div>
+            <div class="export-title">Session CSV</div>
+            <div class="export-desc">Every BLE sample as a CSV row</div>
+            <button id="exportCsvBtn" class="btn btn-connect full-width">Download CSV</button>
+          </div>
+          <div class="export-card">
+            <div class="export-icon">◷</div>
+            <div class="export-title">Lap Summary CSV</div>
+            <div class="export-desc">Lap times, sectors and peak G per lap</div>
+            <button id="exportLapCsvBtn" class="btn btn-connect full-width">Download Laps</button>
+          </div>
+        </div>
+        <div class="export-info">
+          <div class="sidebar-section">
+            <div class="section-title">SESSION STATS</div>
+            <div class="stat-row"><span>Total Packets</span><span id="statPackets">0</span></div>
+            <div class="stat-row"><span>Total Laps</span><span id="statLaps">0</span></div>
+            <div class="stat-row"><span>Best Lap</span><span id="statBestLap">--</span></div>
+            <div class="stat-row"><span>Duration</span><span id="statDuration">--</span></div>
+            <div class="stat-row"><span>Data Size</span><span id="statSize">0 KB</span></div>
+          </div>
+          <div class="sidebar-section">
+            <div class="section-title" style="color:var(--danger)">DANGER ZONE</div>
+            <button id="clearSessionBtn" class="btn btn-disconnect full-width">Clear All Session Data</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- External libs -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- App modules -->
+  <script src="js/ble.js"></script>
+  <script src="js/session.js"></script>
+  <script src="js/tabs/dashboard.js"></script>
+  <script src="js/tabs/map.js"></script>
+  <script src="js/tabs/ggplot.js"></script>
+  <script src="js/tabs/timing.js"></script>
+  <script src="js/tabs/channels.js"></script>
+  <script src="js/tabs/export.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
