@@ -970,13 +970,63 @@ select, input { font-family: var(--font-sans); color: var(--ink); }
   .dash-card { padding: 10px; }
 
   .dashboard-grid { grid-template-columns: 1fr; }
-  .speed-card, .compass-card, .gg-mini-card, .g-bars-card, .info-card { grid-column: 1; }
+  .speed-card, .compass-card, .gg-mini-card, .g-bars-card, .info-card {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .gg-mini-vals {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
   .split-layout { flex-direction: column; }
   .split-sidebar { width: 100%; min-width: unset; border-left: none; border-top: 1px solid var(--line); }
+  .btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  .btn-group .btn-sm {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .toggle-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
   #mapContainer { min-height: 60vw; }
-  .timing-live-bar { gap: 16px; }
+  .timing-live-bar {
+    gap: 10px;
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .timing-live-item,
+  .timing-live-item.large {
+    width: 100%;
+  }
   .tl-timer { font-size: 22px; }
+
   .channels-sidebar { order: 0; }
+
+  .export-layout {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+  .export-cards,
+  .export-info {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
 }
 
 @media (max-width: 430px), (hover: none) and (pointer: coarse) {
