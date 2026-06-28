@@ -128,14 +128,31 @@ const EspTab = (() => {
      File list (via BLE command + notify reply)
   ══════════════════════════════════════════════════════ */
 
+  /* ══════════════════════════════════════════════════════
+     File manager state and navigation
+  ══════════════════════════════════════════════════════ */
+  let currentSdPath = '/';
+  let cachedFiles = [];
+
+  $('sdUpDirBtn')?.addEventListener('click', () => {
+    // Navigate up one directory: e.g. "/sessions/boot_123" -> "/sessions"
+    let parts = currentSdPath.split('/').filter(Boolean);
+    if (parts.length > 0) {
+      parts.pop();
+      currentSdPath = parts.length > 0 ? '/' + parts.join('/') : '/';
+      refreshFileList(); // Request list for the new path
+    }
+  });
+
   async function refreshFileList() {
     if (!window.ble.connected) {
       log('Non connesso — impossibile leggere SD', 'warn');
       return;
     }
-    log('Richiesta lista file SD...', 'info');
+    log(`Richiesta lista file SD path: ${currentSdPath}...`, 'info');
     try {
-      await window.ble.sendCommand('SD_LIST');
+      // Modifica: Inoltriamo il path che vogliamo listare all'ESP32
+      await window.ble.sendCommand(`SD_LIST_DIR:${currentSdPath}`);
       // Reply arrives as 'cmd' event → handled in onBleCmd()
     } catch (e) {
       log('Errore SD_LIST: ' + e.message, 'err');
@@ -146,27 +163,58 @@ const EspTab = (() => {
     const body = $('sdFileBody');
     if (!body) return;
     body.innerHTML = '';
+    
+    // Update path UI
+    const pathEl = $('sdCurrentPath');
+    const upBtn = $('sdUpDirBtn');
+    if (pathEl) pathEl.textContent = currentSdPath;
+    if (upBtn) upBtn.style.display = currentSdPath === '/' ? 'none' : 'inline-block';
 
     if (!files || !files.length) {
       body.innerHTML =
-        '<tr><td colspan="4" style="text-align:center;color:var(--text-2);padding:16px">Nessun file trovato</td></tr>';
+        '<tr><td colspan="4" style="text-align:center;color:var(--text-2);padding:16px">Nessuna voce trovata</td></tr>';
       return;
     }
 
     files.forEach(f => {
       const tr = document.createElement('tr');
+      const isDir = f.isDir;
+      const icon = isDir ? '📁' : '📄';
+      const nameWithIcon = `${icon} ${escHtml(f.name)}`;
+
+      let actionHtml = '';
+      if (isDir) {
+          actionHtml = `<button class="btn btn-sm" data-folder="${escHtml(f.name)}">🗂️ Apri</button>`;
+      } else {
+          // Aggiungiamo un doppio bottone: uno per graficare i dati, l'altro per il salvataggio locale
+          actionHtml = `
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm action-load" title="Carica nella Dashboard">⤓</button>
+              <button class="btn btn-sm action-save" title="Salva in locale">💾</button>
+            </div>
+          `;
+      }
+
       tr.innerHTML = `
-        <td class="mono">${escHtml(f.name)}</td>
-        <td>${formatSize(f.size)}</td>
+        <td class="mono" style="cursor:${isDir?'pointer':'default'}">${nameWithIcon}</td>
+        <td>${isDir ? '--' : formatSize(f.size)}</td>
         <td>${escHtml(f.date || '--')}</td>
-        <td>
-          <button class="btn btn-sm" data-file="${escHtml(f.name)}">⤓ Carica</button>
-        </td>`;
-      tr.querySelector('button').addEventListener('click', () => loadFile(f));
+        <td>${actionHtml}</td>`;
+      
+      // Events
+      if (isDir) {
+        tr.querySelector('button').addEventListener('click', () => {
+           currentSdPath = (currentSdPath === '/' ? '' : currentSdPath) + '/' + f.name;
+           refreshFileList();
+        });
+      } else {
+        tr.querySelector('.action-load').addEventListener('click', () => loadFile(f, false));
+        tr.querySelector('.action-save').addEventListener('click', () => loadFile(f, true));
+      }
       body.appendChild(tr);
     });
 
-    log(`${files.length} file trovati sulla SD`, 'ok');
+    log(`${files.length} voci trovate sulla SD (${currentSdPath})`, 'ok');
   }
 
   function formatSize(bytes) {
@@ -180,7 +228,7 @@ const EspTab = (() => {
      File transfer (Wi-Fi HTTP)
   ══════════════════════════════════════════════════════ */
 
-  async function loadFile(f) {
+  async function loadFile(f, isSaveToDisk = false) {
     if (transferring) {
       showToast('Trasferimento già in corso');
       return;
@@ -196,7 +244,13 @@ const EspTab = (() => {
     log(`Download: ${f.name}`, 'info');
 
     try {
-      const buffer = await window.ble.downloadFile(f.name, (rx, tot) => {
+      // Costruisci il percorso reale del file (se serve)
+      // L'ESP32 potrebbe aver bisogno del root path. Assumiamo che "f.name"
+      // sul firmware ora contenga solo il nome file.
+      // Se l'ESP32 aspetta il percorso completo:
+      const fullPath = (currentSdPath === '/' ? '' : currentSdPath) + '/' + f.name;
+
+      const buffer = await window.ble.downloadFile(fullPath, (rx, tot) => {
         const pct = tot ? Math.round((rx / tot) * 100) : 0;
         setTransferUI(true, f.name, pct);
       });
@@ -204,12 +258,17 @@ const EspTab = (() => {
       setTransferUI(true, f.name, 100);
       log(`File ricevuto: ${f.name} (${formatSize(buffer.byteLength)})`, 'ok');
 
-      // Hand off to Session for parsing and visualization
-      if (window.Session?.loadFromBuffer) {
-        window.Session.loadFromBuffer(buffer, f.name);
-        showToast(`${f.name} caricato — visualizza nelle altre tab`);
+      // Gestione del file in base al pulsante premuto
+      if (isSaveToDisk) {
+        saveBufferToDisk(buffer, f.name);
+        showToast(`${f.name} salvato sul PC`);
       } else {
-        showToast(`File ricevuto (${formatSize(buffer.byteLength)})`);
+        if (window.Session?.loadFromBuffer) {
+          window.Session.loadFromBuffer(buffer, f.name);
+          showToast(`${f.name} caricato — visualizza nelle altre tab`);
+        } else {
+          showToast(`File ricevuto (${formatSize(buffer.byteLength)}) ma parser non trovato`);
+        }
       }
     } catch (e) {
       log('Errore download: ' + e.message, 'err');
@@ -218,6 +277,19 @@ const EspTab = (() => {
 
     setTimeout(() => setTransferUI(false), 2000);
     transferring = false;
+  }
+
+  // Funzione helper per il download da browser
+  function saveBufferToDisk(buffer, filename) {
+    const blob = new Blob([buffer], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   function setTransferUI(visible, name, pct) {

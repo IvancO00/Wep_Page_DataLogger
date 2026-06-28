@@ -125,9 +125,12 @@
         <div class="split-main" style="display:flex; flex-direction:column; gap:12px; min-width:0">
         
           <div class="sidebar-section">
-            <div class="section-title" style="display:flex;justify-content:space-between">
-              FILE SU SD CARD
-              <button id="refreshFilesBtn" class="btn btn-sm">↻ Aggiorna</button>
+            <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px">FILE SD: <span id="sdCurrentPath" style="color:var(--accent)">/</span></span>
+              <div style="display:flex; gap:4px;">
+                <button id="sdUpDirBtn" class="btn btn-sm" style="display:none;">⬆️ Su</button>
+                <button id="refreshFilesBtn" class="btn btn-sm">↻ Aggiorna</button>
+              </div>
             </div>
             <table class="timing-table" id="sdFileTable">
               <thead>
