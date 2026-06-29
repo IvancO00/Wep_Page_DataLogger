@@ -13,7 +13,7 @@
  *   SD_NEWFILE — open a new file mid-session
  *
  * Wi-Fi endpoints expected on ESP32:
- *   GET /status  → { sdMounted, sdFreeMB, firmware, acqRunning, acqFile }
+ *   GET /status  → { sdMounted, sdTotalMB, sdFreeMB, sdUsedMB, firmware, acqRunning, acqFile }
  *   GET /file?name=<name> → raw binary (Content-Length header required)
  */
 
@@ -319,6 +319,7 @@ const EspTab = (() => {
 
   function updateStatusUI(s) {
     if ($('sdStatus'))   $('sdStatus').textContent   = s.sdMounted ? 'Montata' : 'Assente';
+    if ($('sdTotal'))    $('sdTotal').textContent    = s.sdTotalMB != null ? s.sdTotalMB + ' MB' : '--';
     if ($('sdFree'))     $('sdFree').textContent     = s.sdFreeMB != null ? s.sdFreeMB + ' MB' : '--';
     if ($('espFirmware'))$('espFirmware').textContent = s.firmware  || '--';
     if ($('acqFile'))    $('acqFile').textContent    = s.acqFile   || '--';
