@@ -13,7 +13,7 @@
  *   SD_NEWFILE — open a new file mid-session
  *
  * Wi-Fi endpoints expected on ESP32:
- *   GET /status  → { sdMounted, sdFreeMB, firmware, acqRunning, acqFile }
+ *   GET /status  → { sdMounted, sdTotalMB, sdFreeMB, sdUsedMB, firmware, acqRunning, acqFile }
  *   GET /file?name=<name> → raw binary (Content-Length header required)
  */
 
@@ -307,18 +307,34 @@ const EspTab = (() => {
      ESP status (Wi-Fi /status)
   ══════════════════════════════════════════════════════ */
 
-  async function fetchEspStatus() {
-    if (!window.ble.espIp) return;
+  async function fetchEspStatus(silent = true) {
+    if (!window.ble.espIp) {
+      if (!silent) {
+        showToast('IP ESP32 non impostato');
+        log('Test Wi-Fi fallito: IP ESP32 non impostato', 'warn');
+      }
+      return false;
+    }
     try {
       const s = await window.ble.fetchStatus();
       updateStatusUI(s);
+      if (!silent) {
+        log('Test Wi-Fi OK: endpoint /status raggiunto', 'ok');
+        showToast('Wi-Fi OK: /status raggiungibile');
+      }
+      return true;
     } catch (e) {
-      // Wi-Fi status optional — don't spam console
+      if (!silent) {
+        log('Test Wi-Fi fallito: ' + (e?.message || String(e)), 'err');
+        showToast('Wi-Fi non raggiungibile: controlla IP/AP');
+      }
+      return false;
     }
   }
 
   function updateStatusUI(s) {
     if ($('sdStatus'))   $('sdStatus').textContent   = s.sdMounted ? 'Montata' : 'Assente';
+    if ($('sdTotal'))    $('sdTotal').textContent    = s.sdTotalMB != null ? s.sdTotalMB + ' MB' : '--';
     if ($('sdFree'))     $('sdFree').textContent     = s.sdFreeMB != null ? s.sdFreeMB + ' MB' : '--';
     if ($('espFirmware'))$('espFirmware').textContent = s.firmware  || '--';
     if ($('acqFile'))    $('acqFile').textContent    = s.acqFile   || '--';
@@ -349,7 +365,7 @@ const EspTab = (() => {
       window.ble.setEspIp(ip);
       log(`IP ESP32 salvato: ${ip}`, 'ok');
       showToast('IP salvato');
-      fetchEspStatus();
+      fetchEspStatus(false);
     });
   }
 
@@ -362,7 +378,7 @@ const EspTab = (() => {
     if (badge) { badge.textContent = 'CONNESSO'; badge.className = 'fix-badge fix-3d'; }
     log('ESP32 connesso via BLE', 'ok');
     // Fetch SD status and file list on connect
-    setTimeout(fetchEspStatus, 500);
+    setTimeout(() => fetchEspStatus(true), 500);
     setTimeout(refreshFileList, 800);
   }
 
@@ -426,7 +442,7 @@ const EspTab = (() => {
     // Periodic Wi-Fi status refresh when tab is visible (every 5 s)
     setInterval(() => {
       if (document.getElementById('tab-esp')?.classList.contains('active')) {
-        fetchEspStatus();
+        fetchEspStatus(true);
       }
     }, 5000);
 

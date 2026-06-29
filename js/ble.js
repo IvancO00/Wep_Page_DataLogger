@@ -27,7 +27,7 @@
  *
  * Wi-Fi file transfer (ESP32 runs a minimal HTTP server):
  *   GET http://<espIp>/file?name=<filename>   → raw binary (application/octet-stream)
- *   GET http://<espIp>/status                 → { sdMounted, sdFreeMB, firmware, acqRunning, acqFile }
+ *   GET http://<espIp>/status                 → { sdMounted, sdTotalMB, sdFreeMB, sdUsedMB, firmware, acqRunning, acqFile }
  *
  * Events fired on window.ble (EventTarget):
  *   'connecting'   — scan started
@@ -175,7 +175,7 @@ class BLEManager extends EventTarget {
 
   /**
    * Fetch ESP32 status over Wi-Fi.
-   * Returns { sdMounted, sdFreeMB, firmware, acqRunning, acqFile }
+   * Returns { sdMounted, sdTotalMB, sdFreeMB, sdUsedMB, firmware, acqRunning, acqFile }
    */
   async fetchStatus() {
     if (!this.espIp) throw new Error('ESP IP not set');
