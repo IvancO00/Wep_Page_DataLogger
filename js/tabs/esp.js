@@ -145,17 +145,31 @@ const EspTab = (() => {
   });
 
   async function refreshFileList() {
+    log(`Richiesta lista file SD path: ${currentSdPath}...`, 'info');
+
+    // Prefer Wi-Fi listing: no BLE payload size limits, full directory visibility.
+    if (window.ble.espIp) {
+      try {
+        const reply = await window.ble.fetchFileList(currentSdPath);
+        if (reply?.files) {
+          renderFileList(reply.files);
+          return;
+        }
+      } catch (e) {
+        log('Wi-Fi list fallita, fallback BLE: ' + e.message, 'warn');
+      }
+    }
+
     if (!window.ble.connected) {
-      log('Non connesso — impossibile leggere SD', 'warn');
+      log('Non connesso BLE e Wi-Fi list non disponibile', 'warn');
       return;
     }
-    log(`Richiesta lista file SD path: ${currentSdPath}...`, 'info');
+
     try {
-      // Modifica: Inoltriamo il path che vogliamo listare all'ESP32
       await window.ble.sendCommand(`SD_LIST_DIR:${currentSdPath}`);
       // Reply arrives as 'cmd' event → handled in onBleCmd()
     } catch (e) {
-      log('Errore SD_LIST: ' + e.message, 'err');
+      log('Errore SD_LIST via BLE: ' + e.message, 'err');
     }
   }
 
@@ -260,8 +274,8 @@ const EspTab = (() => {
 
       // Gestione del file in base al pulsante premuto
       if (isSaveToDisk) {
-        saveBufferToDisk(buffer, f.name);
-        showToast(`${f.name} salvato sul PC`);
+        triggerBrowserDownload(fullPath, f.name);
+        showToast(`${f.name} inviato al download del browser`);
       } else {
         if (window.Session?.loadFromBuffer) {
           window.Session.loadFromBuffer(buffer, f.name);
@@ -279,17 +293,15 @@ const EspTab = (() => {
     transferring = false;
   }
 
-  // Funzione helper per il download da browser
-  function saveBufferToDisk(buffer, filename) {
-    const blob = new Blob([buffer], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
+  // Trigger direct browser download to default Downloads folder.
+  function triggerBrowserDownload(fullPath, filename) {
+    const url = window.ble.getFileUrl(fullPath);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
   function setTransferUI(visible, name, pct) {

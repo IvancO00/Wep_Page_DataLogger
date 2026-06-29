@@ -136,6 +136,12 @@ class BLEManager extends EventTarget {
     localStorage.setItem('kart_esp_ip', this.espIp);
   }
 
+  /** Build direct HTTP URL for a file path on ESP32 */
+  getFileUrl(filePath) {
+    if (!this.espIp) throw new Error('ESP IP not set');
+    return `http://${this.espIp}/file?name=${encodeURIComponent(filePath)}`;
+  }
+
   /**
    * Download a file from the ESP32 SD card over Wi-Fi.
    *
@@ -180,6 +186,14 @@ class BLEManager extends EventTarget {
   async fetchStatus() {
     if (!this.espIp) throw new Error('ESP IP not set');
     const response = await fetch(`http://${this.espIp}/status`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  }
+
+  /** Fetch full SD directory list over Wi-Fi. Returns { cmd, path, files } */
+  async fetchFileList(path = '/') {
+    if (!this.espIp) throw new Error('ESP IP not set');
+    const response = await fetch(`http://${this.espIp}/list?path=${encodeURIComponent(path)}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
   }
