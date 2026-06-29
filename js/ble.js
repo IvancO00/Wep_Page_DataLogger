@@ -56,8 +56,8 @@ class BLEManager extends EventTarget {
     this.connected      = false;
     this._reconnecting  = false;
 
-    // Wi-Fi base URL — set via setEspIp() or from localStorage
-    this.espIp = localStorage.getItem('kart_esp_ip') || null;
+    // Wi-Fi base URL — default to ESP32 AP IP if not configured
+    this.espIp = localStorage.getItem('kart_esp_ip') || '192.168.4.1';
 
     const cfg = this._loadUUIDs();
     if (cfg) {

@@ -439,6 +439,9 @@ const EspTab = (() => {
         onBleConnected();
     }
 
+    // Try one immediate Wi-Fi status fetch even without BLE connection.
+    fetchEspStatus(true);
+
     // Periodic Wi-Fi status refresh when tab is visible (every 5 s)
     setInterval(() => {
       if (document.getElementById('tab-esp')?.classList.contains('active')) {
