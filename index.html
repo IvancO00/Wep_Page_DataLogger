@@ -133,6 +133,17 @@
                 <button id="refreshFilesBtn" class="btn btn-sm">↻ Aggiorna</button>
               </div>
             </div>
+            <div class="sd-file-toolbar">
+              <input id="sdSearchInput" class="select-input" type="text" placeholder="Cerca file o cartelle...">
+              <div class="sd-sort-controls">
+                <select id="sdSortSelect" class="select-input">
+                  <option value="name">Ordina: Nome</option>
+                  <option value="date">Ordina: Data</option>
+                  <option value="size">Ordina: Dimensione</option>
+                </select>
+                <button id="sdSortDirBtn" class="btn btn-sm" title="Inverti ordinamento">↑</button>
+              </div>
+            </div>
             <table class="timing-table" id="sdFileTable">
               <thead>
                 <tr><th>NOME FILE</th><th>DIMENSIONE</th><th>DATA</th><th>AZIONE</th></tr>

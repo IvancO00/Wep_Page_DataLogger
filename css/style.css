@@ -281,6 +281,21 @@ select, input { font-family: var(--font-sans); color: var(--ink); }
 }
 .tab-panel.active { display: flex; flex-direction: column; }
 
+/* ESP tab needs full-page vertical scrolling for file table + console */
+#tab-esp {
+  overflow-y: auto;
+}
+
+#tab-esp .split-layout {
+  min-height: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+#tab-esp .split-main {
+  overflow: visible;
+}
+
 /* ═══════════════════════════════════════════════════════
    COMMON LAYOUT PRIMITIVES
    ═══════════════════════════════════════════════════════ */
@@ -719,6 +734,85 @@ select, input { font-family: var(--font-sans); color: var(--ink); }
   border-left: 3px solid var(--warn);
 }
 
+/* ESP file browser table */
+#sdFileTable {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+#sdFileTable th:nth-child(1),
+#sdFileTable td:nth-child(1) { width: 46%; }
+
+#sdFileTable th:nth-child(2),
+#sdFileTable td:nth-child(2) { width: 14%; }
+
+#sdFileTable th:nth-child(3),
+#sdFileTable td:nth-child(3) { width: 20%; }
+
+#sdFileTable th:nth-child(4),
+#sdFileTable td:nth-child(4) { width: 20%; }
+
+#sdFileTable td {
+  vertical-align: middle;
+}
+
+.sd-row-dir .sd-name-cell {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.sd-name-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sd-size-cell,
+.sd-date-cell {
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.sd-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+#sdFileTable .btn-sm {
+  min-width: 64px;
+  padding: 5px 8px;
+}
+
+.sd-empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 18px;
+}
+
+.sd-file-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+
+.sd-sort-controls {
+  display: flex;
+  gap: 6px;
+}
+
+#sdSortSelect {
+  min-width: 150px;
+}
+
+#sdSortDirBtn {
+  min-width: 38px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 /* ═══════════════════════════════════════════════════════
    CHANNELS
    ═══════════════════════════════════════════════════════ */
@@ -1026,6 +1120,73 @@ select, input { font-family: var(--font-sans); color: var(--ink); }
     width: 100%;
     max-width: none;
     min-width: 0;
+  }
+
+  #sdFileTable {
+    min-width: 0;
+  }
+
+  #sdFileTable thead {
+    display: none;
+  }
+
+  #sdFileTable,
+  #sdFileTable tbody,
+  #sdFileTable tr,
+  #sdFileTable td {
+    display: block;
+    width: 100%;
+  }
+
+  #sdFileTable tr {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    padding: 8px;
+  }
+
+  #sdFileTable td {
+    border: none;
+    padding: 4px 6px;
+  }
+
+  #sdFileTable td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+
+  .sd-name-cell {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .sd-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #sdFileTable .btn-sm {
+    min-width: 72px;
+  }
+
+  .sd-file-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .sd-sort-controls {
+    width: 100%;
+  }
+
+  #sdSortSelect {
+    min-width: 0;
+    flex: 1;
   }
 }
 

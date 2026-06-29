@@ -133,6 +133,9 @@ const EspTab = (() => {
   ══════════════════════════════════════════════════════ */
   let currentSdPath = '/';
   let cachedFiles = [];
+  let sdSearchTerm = '';
+  let sdSortKey = 'name';
+  let sdSortDir = 'asc';
 
   $('sdUpDirBtn')?.addEventListener('click', () => {
     // Navigate up one directory: e.g. "/sessions/boot_123" -> "/sessions"
@@ -173,10 +176,76 @@ const EspTab = (() => {
     }
   }
 
-  function renderFileList(files) {
+  function parseDateValue(dateStr) {
+    const t = Date.parse(dateStr || '');
+    return Number.isFinite(t) ? t : 0;
+  }
+
+  function compareFileEntries(a, b) {
+    const aIsDir = !!a.isDir;
+    const bIsDir = !!b.isDir;
+
+    // Keep folders on top for easier navigation.
+    if (aIsDir !== bIsDir) return aIsDir ? -1 : 1;
+
+    let cmp = 0;
+    if (sdSortKey === 'size') {
+      const sizeA = Number(a.size) || 0;
+      const sizeB = Number(b.size) || 0;
+      cmp = sizeA - sizeB;
+    } else if (sdSortKey === 'date') {
+      cmp = parseDateValue(a.date) - parseDateValue(b.date);
+    } else {
+      cmp = String(a.name || '').localeCompare(String(b.name || ''), undefined, {
+        numeric: true,
+        sensitivity: 'base'
+      });
+    }
+
+    if (cmp === 0) {
+      cmp = String(a.name || '').localeCompare(String(b.name || ''), undefined, {
+        numeric: true,
+        sensitivity: 'base'
+      });
+    }
+
+    return sdSortDir === 'asc' ? cmp : -cmp;
+  }
+
+  function getVisibleFiles() {
+    const term = sdSearchTerm.trim().toLowerCase();
+    const list = Array.isArray(cachedFiles) ? cachedFiles.slice() : [];
+
+    const filtered = term
+      ? list.filter(f => String(f?.name || '').toLowerCase().includes(term))
+      : list;
+
+    filtered.sort(compareFileEntries);
+    return filtered;
+  }
+
+  function updateSortDirectionButton() {
+    const btn = $('sdSortDirBtn');
+    if (!btn) return;
+    const asc = sdSortDir === 'asc';
+    btn.textContent = asc ? '↑' : '↓';
+    btn.title = asc ? 'Ordinamento crescente' : 'Ordinamento decrescente';
+  }
+
+  function renderCachedFileList() {
+    renderFileList(cachedFiles, true);
+  }
+
+  function renderFileList(files, fromCache = false) {
     const body = $('sdFileBody');
     if (!body) return;
     body.innerHTML = '';
+
+    if (!fromCache) {
+      cachedFiles = Array.isArray(files) ? files.slice() : [];
+    }
+
+    const visibleFiles = getVisibleFiles();
     
     // Update path UI
     const pathEl = $('sdCurrentPath');
@@ -184,51 +253,92 @@ const EspTab = (() => {
     if (pathEl) pathEl.textContent = currentSdPath;
     if (upBtn) upBtn.style.display = currentSdPath === '/' ? 'none' : 'inline-block';
 
-    if (!files || !files.length) {
+    if (!visibleFiles.length) {
+      const msg = cachedFiles.length
+        ? 'Nessun risultato con il filtro corrente'
+        : 'Nessuna voce trovata in questa cartella';
       body.innerHTML =
-        '<tr><td colspan="4" style="text-align:center;color:var(--text-2);padding:16px">Nessuna voce trovata</td></tr>';
+        `<tr><td colspan="4" class="sd-empty">${msg}</td></tr>`;
       return;
     }
 
-    files.forEach(f => {
+    visibleFiles.forEach(f => {
       const tr = document.createElement('tr');
       const isDir = f.isDir;
       const icon = isDir ? '📁' : '📄';
       const nameWithIcon = `${icon} ${escHtml(f.name)}`;
+      tr.className = isDir ? 'sd-row sd-row-dir' : 'sd-row sd-row-file';
 
       let actionHtml = '';
       if (isDir) {
-          actionHtml = `<button class="btn btn-sm" data-folder="${escHtml(f.name)}">🗂️ Apri</button>`;
+          actionHtml = `<button class="btn btn-sm action-open" data-folder="${escHtml(f.name)}">Apri</button>`;
       } else {
-          // Aggiungiamo un doppio bottone: uno per graficare i dati, l'altro per il salvataggio locale
           actionHtml = `
-            <div style="display:flex;gap:4px">
-              <button class="btn btn-sm action-load" title="Carica nella Dashboard">⤓</button>
-              <button class="btn btn-sm action-save" title="Salva in locale">💾</button>
+            <div class="sd-actions">
+              <button class="btn btn-sm action-load" title="Carica nella Dashboard">Carica</button>
+              <button class="btn btn-sm action-save" title="Salva in locale">Salva</button>
             </div>
           `;
       }
 
       tr.innerHTML = `
-        <td class="mono" style="cursor:${isDir?'pointer':'default'}">${nameWithIcon}</td>
-        <td>${isDir ? '--' : formatSize(f.size)}</td>
-        <td>${escHtml(f.date || '--')}</td>
-        <td>${actionHtml}</td>`;
+        <td class="mono sd-name-cell" data-label="Nome">${nameWithIcon}</td>
+        <td class="sd-size-cell" data-label="Dimensione">${isDir ? '--' : formatSize(f.size)}</td>
+        <td class="sd-date-cell" data-label="Data">${escHtml(f.date || '--')}</td>
+        <td class="sd-action-cell" data-label="Azione">${actionHtml}</td>`;
       
       // Events
       if (isDir) {
-        tr.querySelector('button').addEventListener('click', () => {
+        tr.querySelector('.action-open')?.addEventListener('click', () => {
            currentSdPath = (currentSdPath === '/' ? '' : currentSdPath) + '/' + f.name;
            refreshFileList();
         });
+        tr.querySelector('.sd-name-cell')?.addEventListener('click', () => {
+          currentSdPath = (currentSdPath === '/' ? '' : currentSdPath) + '/' + f.name;
+          refreshFileList();
+        });
       } else {
         tr.querySelector('.action-load').addEventListener('click', () => loadFile(f, false));
-        tr.querySelector('.action-save').addEventListener('click', () => loadFile(f, true));
+        tr.querySelector('.action-save').addEventListener('click', () => saveFileToDisk(f));
       }
       body.appendChild(tr);
     });
 
-    log(`${files.length} voci trovate sulla SD (${currentSdPath})`, 'ok');
+    const filteredLabel = sdSearchTerm.trim()
+      ? ` (filtro: ${visibleFiles.length}/${cachedFiles.length})`
+      : '';
+    log(`${visibleFiles.length} voci mostrate sulla SD (${currentSdPath})${filteredLabel}`, 'ok');
+  }
+
+  function setupFileListControls() {
+    const searchInput = $('sdSearchInput');
+    const sortSelect = $('sdSortSelect');
+    const sortDirBtn = $('sdSortDirBtn');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        sdSearchTerm = searchInput.value || '';
+        renderCachedFileList();
+      });
+    }
+
+    if (sortSelect) {
+      sortSelect.value = sdSortKey;
+      sortSelect.addEventListener('change', () => {
+        sdSortKey = sortSelect.value || 'name';
+        renderCachedFileList();
+      });
+    }
+
+    if (sortDirBtn) {
+      sortDirBtn.addEventListener('click', () => {
+        sdSortDir = sdSortDir === 'asc' ? 'desc' : 'asc';
+        updateSortDirectionButton();
+        renderCachedFileList();
+      });
+    }
+
+    updateSortDirectionButton();
   }
 
   function formatSize(bytes) {
@@ -253,16 +363,17 @@ const EspTab = (() => {
       window.ble.setEspIp(ip);
     }
 
+    if (isSaveToDisk) {
+      saveFileToDisk(f);
+      return;
+    }
+
     transferring = true;
     setTransferUI(true, f.name, 0);
     log(`Download: ${f.name}`, 'info');
 
     try {
-      // Costruisci il percorso reale del file (se serve)
-      // L'ESP32 potrebbe aver bisogno del root path. Assumiamo che "f.name"
-      // sul firmware ora contenga solo il nome file.
-      // Se l'ESP32 aspetta il percorso completo:
-      const fullPath = (currentSdPath === '/' ? '' : currentSdPath) + '/' + f.name;
+      const fullPath = buildFullPath(f.name);
 
       const buffer = await window.ble.downloadFile(fullPath, (rx, tot) => {
         const pct = tot ? Math.round((rx / tot) * 100) : 0;
@@ -272,17 +383,11 @@ const EspTab = (() => {
       setTransferUI(true, f.name, 100);
       log(`File ricevuto: ${f.name} (${formatSize(buffer.byteLength)})`, 'ok');
 
-      // Gestione del file in base al pulsante premuto
-      if (isSaveToDisk) {
-        triggerBrowserDownload(fullPath, f.name);
-        showToast(`${f.name} inviato al download del browser`);
+      if (window.Session?.loadFromBuffer) {
+        window.Session.loadFromBuffer(buffer, f.name);
+        showToast(`${f.name} caricato — visualizza nelle altre tab`);
       } else {
-        if (window.Session?.loadFromBuffer) {
-          window.Session.loadFromBuffer(buffer, f.name);
-          showToast(`${f.name} caricato — visualizza nelle altre tab`);
-        } else {
-          showToast(`File ricevuto (${formatSize(buffer.byteLength)}) ma parser non trovato`);
-        }
+        showToast(`File ricevuto (${formatSize(buffer.byteLength)}) ma parser non trovato`);
       }
     } catch (e) {
       log('Errore download: ' + e.message, 'err');
@@ -291,6 +396,22 @@ const EspTab = (() => {
 
     setTimeout(() => setTransferUI(false), 2000);
     transferring = false;
+  }
+
+  function buildFullPath(fileName) {
+    return (currentSdPath === '/' ? '' : currentSdPath) + '/' + fileName;
+  }
+
+  function saveFileToDisk(f) {
+    try {
+      const fullPath = buildFullPath(f.name);
+      triggerBrowserDownload(fullPath, f.name);
+      log(`Download browser avviato: ${f.name}`, 'ok');
+      showToast(`${f.name} inviato ai download del browser`);
+    } catch (e) {
+      log('Errore avvio download browser: ' + (e?.message || String(e)), 'err');
+      showToast('Impossibile avviare il download');
+    }
   }
 
   // Trigger direct browser download to default Downloads folder.
@@ -440,6 +561,7 @@ const EspTab = (() => {
 
     // IP field
     setupIpField();
+    setupFileListControls();
 
     // BLE events
     window.ble.addEventListener('connected',    () => onBleConnected());
