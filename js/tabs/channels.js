@@ -114,6 +114,23 @@ class ChannelsTab {
     }
   }
 
+  loadPackets(packets) {
+    this._buf = {
+      labels:  [],
+      speed:   [],
+      lateral: [],
+      longG:   [],
+      vertG:   [],
+      yaw:     [],
+    };
+
+    for (const packet of packets) {
+      this.update(packet);
+    }
+
+    this._pushToCharts();
+  }
+
   onActivate() {
     this._pushToCharts();
     Object.values(this._charts).forEach(c => c.resize());

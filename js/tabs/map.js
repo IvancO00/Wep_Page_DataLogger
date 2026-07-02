@@ -109,6 +109,13 @@ class MapTab {
     this._updateSidebarCounts();
   }
 
+  loadPackets(packets) {
+    this.clearTrack();
+    for (const packet of packets) {
+      this.update(packet);
+    }
+  }
+
   clearTrack() {
     this._trackLayer.clearLayers();
     this._trackPoints   = [];
@@ -147,6 +154,7 @@ class MapTab {
       this._markerLayer.clearLayers();
       document.getElementById('finishLineStatus').textContent = 'Not set';
       document.getElementById('sectorStatus').textContent     = '0 / 2 sectors set';
+      session.rebuildHistoricalSession();
     });
 
     document.getElementById('clearTrackBtn').addEventListener('click', () => {
@@ -205,6 +213,7 @@ class MapTab {
     this._pendingPt = null;
     this._map.getContainer().style.cursor = '';
     this._renderMarkers();
+    session.rebuildHistoricalSession();
   }
 
   /* ── Marker rendering ────────────────────────────── */

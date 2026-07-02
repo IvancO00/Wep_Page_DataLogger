@@ -375,23 +375,43 @@ const EspTab = (() => {
     try {
       const fullPath = buildFullPath(f.name);
 
-      const buffer = await window.ble.downloadFile(fullPath, (rx, tot) => {
+      const primaryBuffer = await window.ble.downloadFile(fullPath, (rx, tot) => {
         const pct = tot ? Math.round((rx / tot) * 100) : 0;
         setTransferUI(true, f.name, pct);
       });
 
       setTransferUI(true, f.name, 100);
-      log(`File ricevuto: ${f.name} (${formatSize(buffer.byteLength)})`, 'ok');
+      log(`File ricevuto: ${f.name} (${formatSize(primaryBuffer.byteLength)})`, 'ok');
 
-      if (window.Session?.loadFromBuffer) {
-        window.Session.loadFromBuffer(buffer, f.name);
-        showToast(`${f.name} caricato — visualizza nelle altre tab`);
+      const fileBuffers = [{ buffer: primaryBuffer, sourceName: f.name }];
+      const companion = getCompanionTrackInfo(f.name);
+
+      if (companion) {
+        try {
+          const companionPath = buildFullPath(companion.name);
+          const companionBuffer = await window.ble.downloadFile(companionPath);
+          fileBuffers.push({ buffer: companionBuffer, sourceName: companion.name });
+          log(`Abbinato automaticamente: ${companion.name} (${formatSize(companionBuffer.byteLength)})`, 'ok');
+        } catch (e) {
+          log(`Companion non trovato (${companion.name}): ${e.message}`, 'warn');
+        }
+      }
+
+      const sessionLoader = getSessionLoader();
+
+      if (sessionLoader?.loadFromBuffers) {
+        const result = sessionLoader.loadFromBuffers(fileBuffers, {
+          selectedFile: f.name,
+          sessionPath: currentSdPath,
+          displayPath: fullPath,
+        });
+        showToast(`${result.sourceName} caricato — ${result.packetCount} punti`);
       } else {
-        showToast(`File ricevuto (${formatSize(buffer.byteLength)}) ma parser non trovato`);
+        showToast(`File ricevuto (${formatSize(primaryBuffer.byteLength)}) ma parser non trovato`);
       }
     } catch (e) {
       log('Errore download: ' + e.message, 'err');
-      showToast('Errore trasferimento file');
+      showToast(`Errore caricamento: ${e.message}`);
     }
 
     setTimeout(() => setTransferUI(false), 2000);
@@ -402,10 +422,16 @@ const EspTab = (() => {
     return (currentSdPath === '/' ? '' : currentSdPath) + '/' + fileName;
   }
 
+  function getCompanionTrackInfo(fileName) {
+    if (fileName === 'track.csv') return { name: 'track_kf.csv' };
+    if (fileName === 'track_kf.csv') return { name: 'track.csv' };
+    return null;
+  }
+
   function saveFileToDisk(f) {
     try {
       const fullPath = buildFullPath(f.name);
-      triggerBrowserDownload(fullPath, f.name);
+      triggerBrowserDownload(fullPath, buildDownloadName(fullPath));
       log(`Download browser avviato: ${f.name}`, 'ok');
       showToast(`${f.name} inviato ai download del browser`);
     } catch (e) {
@@ -423,6 +449,26 @@ const EspTab = (() => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  }
+
+  function buildDownloadName(fullPath) {
+    const normalized = String(fullPath || '')
+      .replace(/\//g, '_');
+
+    return normalized || '_track.csv';
+  }
+
+  function getSessionLoader() {
+    if (window.Session?.loadFromBuffers) return window.Session;
+    if (window.session?.loadFromBuffers) return window.session;
+    if (window.Session?.loadFromBuffer) return {
+      loadFromBuffers(files, metadata) {
+        const primary = Array.isArray(files) ? files[0] : null;
+        if (!primary?.buffer) throw new Error('Missing primary file buffer');
+        return window.Session.loadFromBuffer(primary.buffer, metadata?.sourceName || primary.sourceName || 'track.csv');
+      }
+    };
+    return null;
   }
 
   function setTransferUI(visible, name, pct) {

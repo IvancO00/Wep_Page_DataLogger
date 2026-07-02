@@ -50,6 +50,13 @@ class GGPlotTab {
     }
   }
 
+  loadPackets(packets) {
+    this.clearHistory();
+    for (const packet of packets) {
+      this.update(packet);
+    }
+  }
+
   onActivate() {
     this._pushToChart();
     this._chart.resize();

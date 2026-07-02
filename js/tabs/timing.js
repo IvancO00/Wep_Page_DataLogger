@@ -6,6 +6,11 @@ class TimingTab {
   constructor() {
     this._tbody = document.getElementById('timingTableBody');
     this._currentSectorIdx = 0;
+    this._loadedBanner = document.getElementById('loadedSessionBanner');
+    this._loadedName = document.getElementById('loadedSessionName');
+    this._loadedMeta = document.getElementById('loadedSessionMeta');
+
+    session.addEventListener('sourcechange', e => this.setReplayInfo(e.detail));
   }
 
   /* ── Called every 50 ms from app.js ─────────────── */
@@ -92,6 +97,28 @@ class TimingTab {
     document.getElementById('deltaBest').textContent       = '--';
     document.getElementById('deltaBest').className         = 'delta-time neutral';
     document.getElementById('bestLapDisplay').textContent  = '--:--.---';
+    this.setReplayInfo(null);
+  }
+
+  setReplayInfo(source) {
+    if (!this._loadedBanner || !this._loadedName || !this._loadedMeta) return;
+
+    if (!source) {
+      this._loadedBanner.hidden = true;
+      this._loadedName.textContent = '--';
+      this._loadedMeta.textContent = '--';
+      return;
+    }
+
+    const fileLabel = source.files?.length ? source.files.join(' + ') : source.selectedFile || 'track.csv';
+    const duration = source.durationMs ? session.formatTime(source.durationMs) : '--:--.---';
+    const markerHint = session.finishLine
+      ? `Timing ricalcolata con ${session.sectorMarkers.length} settori attivi`
+      : 'Imposta finish line sulla mappa per ricostruire i lap';
+
+    this._loadedBanner.hidden = false;
+    this._loadedName.textContent = source.displayName || fileLabel;
+    this._loadedMeta.textContent = `${fileLabel} • ${source.packetCount || 0} punti • ${duration} • ${markerHint}`;
   }
 
   /* ── Private ──────────────────────────────────────── */

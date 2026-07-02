@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kart Telemetry</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20260702b">
 </head>
 <body>
 
@@ -42,6 +42,9 @@
     <div class="header-right">
       <button id="connectBtn" class="btn btn-connect">Connect</button>
       <button id="disconnectBtn" class="btn btn-disconnect" disabled>Disconnect</button>
+      <div id="batteryIndicator" class="battery-indicator battery-unknown" aria-label="Battery level unavailable">
+        <span id="batteryPercent" class="battery-percent">--%</span>
+      </div>
       <button id="themeBtn" class="btn btn-icon" title="Toggle theme">◑</button>
     </div>
   </header>
@@ -123,9 +126,9 @@
         
         </aside>
       
-        <div class="split-main" style="display:flex; flex-direction:column; gap:12px; min-width:0">
+        <div class="split-main esp-main-layout">
         
-          <div class="sidebar-section">
+          <div class="sidebar-section esp-files-section">
             <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
               <span style="font-size:11px">FILE SD: <span id="sdCurrentPath" style="color:var(--accent)">/</span></span>
               <div style="display:flex; gap:4px;">
@@ -144,12 +147,14 @@
                 <button id="sdSortDirBtn" class="btn btn-sm" title="Inverti ordinamento">↑</button>
               </div>
             </div>
-            <table class="timing-table" id="sdFileTable">
-              <thead>
-                <tr><th>NOME FILE</th><th>DIMENSIONE</th><th>DATA</th><th>AZIONE</th></tr>
-              </thead>
-              <tbody id="sdFileBody"></tbody>
-            </table>
+            <div class="esp-file-list-wrap">
+              <table class="timing-table" id="sdFileTable">
+                <thead>
+                  <tr><th>NOME FILE</th><th>DIMENSIONE</th><th>DATA</th><th>AZIONE</th></tr>
+                </thead>
+                <tbody id="sdFileBody"></tbody>
+              </table>
+            </div>
             <div id="fileTransferWrap" style="margin-top:8px;display:none">
               <div style="font-size:11px;color:var(--text-2);margin-bottom:4px" id="transferLabel">Trasferimento...</div>
               <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
@@ -158,13 +163,9 @@
             </div>
           </div>
         
-          <div class="sidebar-section">
+          <div class="sidebar-section esp-console-section">
             <div class="section-title">CONSOLE</div>
-            <div id="espConsole" style="
-              background:var(--bg-0);border:1px solid var(--border);border-radius:6px;
-              padding:8px 10px;font-family:var(--mono,monospace);font-size:11px;
-              height:140px;overflow-y:auto;color:var(--text-2)
-            "></div>
+            <div id="espConsole"></div>
           </div>
         
         </div>
@@ -339,6 +340,11 @@
     <!-- ── TIMING ─────────────────────────────────────── -->
     <section id="tab-timing" class="tab-panel">
       <div class="timing-layout">
+        <div id="loadedSessionBanner" class="loaded-session-banner" hidden>
+          <div class="loaded-session-label">Replay storico</div>
+          <div id="loadedSessionName" class="loaded-session-name">--</div>
+          <div id="loadedSessionMeta" class="loaded-session-meta">--</div>
+        </div>
         <div class="timing-live-bar">
           <div class="timing-live-item">
             <div class="tl-label">CURRENT LAP</div>
@@ -470,15 +476,15 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- App modules -->
-  <script src="js/ble.js"></script>
-  <script src="js/session.js"></script>
-  <script src="js/tabs/dashboard.js"></script>
-  <script src="js/tabs/map.js"></script>
-  <script src="js/tabs/ggplot.js"></script>
-  <script src="js/tabs/timing.js"></script>
-  <script src="js/tabs/channels.js"></script>
-  <script src="js/tabs/export.js"></script>
-  <script src="js/tabs/esp.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/ble.js?v=20260702b"></script>
+  <script src="js/session.js?v=20260702b"></script>
+  <script src="js/tabs/dashboard.js?v=20260702b"></script>
+  <script src="js/tabs/map.js?v=20260702b"></script>
+  <script src="js/tabs/ggplot.js?v=20260702b"></script>
+  <script src="js/tabs/timing.js?v=20260702b"></script>
+  <script src="js/tabs/channels.js?v=20260702b"></script>
+  <script src="js/tabs/export.js?v=20260702b"></script>
+  <script src="js/tabs/esp.js?v=20260702b"></script>
+  <script src="js/app.js?v=20260702b"></script>
 </body>
 </html>

@@ -5,6 +5,9 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
+  const batteryIndicator = document.getElementById('batteryIndicator');
+  const batteryPercent = document.getElementById('batteryPercent');
+
   /* ── Tab switching ──────────────────────────────── */
   const tabBtns   = document.querySelectorAll('.tab-btn');
   const tabPanels = document.querySelectorAll('.tab-panel');
@@ -33,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('connected', e.detail.name);
     document.getElementById('connectBtn').disabled    = true;
     document.getElementById('disconnectBtn').disabled = false;
+    setBatteryLevel(null);
     showToast(`Connected to ${e.detail.name}`);
   });
 
@@ -40,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('disconnected', 'Disconnected');
     document.getElementById('connectBtn').disabled    = false;
     document.getElementById('disconnectBtn').disabled = true;
+    setBatteryLevel(null);
     showToast('Disconnected');
   });
 
@@ -47,11 +52,17 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('disconnected', 'Disconnected');
     document.getElementById('connectBtn').disabled    = false;
     document.getElementById('disconnectBtn').disabled = true;
+    setBatteryLevel(null);
     showToast(e.detail.message, 'error');
   });
 
   ble.addEventListener('data', e => {
     const data = e.detail;
+    const batteryLevel = extractBatteryLevel(data);
+
+    if (batteryLevel !== null) {
+      setBatteryLevel(batteryLevel);
+    }
 
     // Feed session engine
     session.addPacket(data);
@@ -127,6 +138,70 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('bleDot').className      = `ble-dot ${state}`;
     document.getElementById('bleStatusText').textContent = text;
   }
+
+  function extractBatteryLevel(data) {
+    const directValue = firstFinite([
+      data.batteryPct,
+      data.batteryPercent,
+      data.battery_percentage,
+      data.battery,
+      data.batt,
+      data.soc,
+      data.charge,
+    ]);
+
+    if (directValue !== null) {
+      if (directValue >= 0 && directValue <= 1) return Math.round(directValue * 100);
+      if (directValue >= 0 && directValue <= 100) return Math.round(directValue);
+    }
+
+    const voltage = firstFinite([data.vbat, data.voltage, data.batteryVoltage]);
+    if (voltage !== null && voltage >= 3.0 && voltage <= 4.35) {
+      const normalized = ((voltage - 3.2) / (4.2 - 3.2)) * 100;
+      return clamp(Math.round(normalized), 0, 100);
+    }
+
+    return null;
+  }
+
+  function setBatteryLevel(level) {
+    batteryIndicator.classList.remove('battery-low', 'battery-medium', 'battery-high', 'battery-unknown');
+
+    if (level === null || !Number.isFinite(level)) {
+      batteryIndicator.classList.add('battery-unknown');
+      batteryIndicator.style.setProperty('--battery-fill', '0%');
+      batteryIndicator.removeAttribute('data-level');
+      batteryIndicator.setAttribute('aria-label', 'Battery level unavailable');
+      batteryPercent.textContent = '--%';
+      return;
+    }
+
+    const safeLevel = clamp(Math.round(level), 0, 100);
+    const batteryClass = safeLevel <= 20
+      ? 'battery-low'
+      : safeLevel <= 55
+        ? 'battery-medium'
+        : 'battery-high';
+
+    batteryIndicator.classList.add(batteryClass);
+    batteryIndicator.style.setProperty('--battery-fill', `${safeLevel}%`);
+    batteryIndicator.dataset.level = String(safeLevel);
+    batteryIndicator.setAttribute('aria-label', `Battery level ${safeLevel}%`);
+    batteryPercent.textContent = `${safeLevel}%`;
+  }
+
+  function firstFinite(values) {
+    for (const value of values) {
+      if (Number.isFinite(value)) return value;
+    }
+    return null;
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  setBatteryLevel(null);
 
   function _addLapOption(lapNum) {
     const opt = document.createElement('option');
